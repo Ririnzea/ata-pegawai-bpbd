@@ -58,20 +58,17 @@
             }
         }
 
-        function doQuickAdmin() {
-            document.getElementById('username').value = 'admin';
-            document.getElementById('password').value = 'admin123';
-            doLoginNow();
-        }
-
-        function doQuickUser() {
-            document.getElementById('username').value = 'user';
-            document.getElementById('password').value = 'user123';
-            doLoginNow();
-        }
+        // Quick login functions removed for security
 
         // Check if already logged in when page loads
         document.addEventListener('DOMContentLoaded', function () {
+            // Load custom logo if exists
+            const customLogo = localStorage.getItem('customLogo');
+            if (customLogo) {
+                document.getElementById('logo').src = customLogo;
+                document.getElementById('login-logo').src = customLogo;
+            }
+
             const savedUser = localStorage.getItem('currentUser');
             if (savedUser) {
                 try {
@@ -167,8 +164,13 @@
                     if (e.target.files && e.target.files[0]) {
                         const reader = new FileReader();
                         reader.onload = function (event) {
-                            document.getElementById('logo').src = event.target.result;
-                            localStorage.setItem('customLogo', event.target.result);
+                            const logoUrl = event.target.result;
+                            // Update logo di header aplikasi
+                            document.getElementById('logo').src = logoUrl;
+                            // Update logo di halaman login
+                            document.getElementById('login-logo').src = logoUrl;
+                            // Simpan ke localStorage
+                            localStorage.setItem('customLogo', logoUrl);
                         };
                         reader.readAsDataURL(e.target.files[0]);
                     }
@@ -440,10 +442,10 @@
 
         // Employee action functions - implemented directly in HTML
         let currentEmployeeId = null;
-        
+
         function handleEmployeeAction(action, id) {
             console.log('handleEmployeeAction called:', action, id);
-            
+
             if (action === 'detail') {
                 showEmployeeDetailLocal(id);
             } else if (action === 'edit') {
@@ -452,20 +454,20 @@
                 deleteEmployeeLocal(id);
             }
         }
-        
+
         function showEmployeeDetailLocal(id) {
             console.log('Showing employee detail for ID:', id);
-            
+
             const employees = JSON.parse(localStorage.getItem('employees')) || [];
             const employee = employees.find(emp => emp.id == id);
-            
+
             if (!employee) {
                 alert('Data pegawai tidak ditemukan!');
                 return;
             }
-            
+
             currentEmployeeId = id;
-            
+
             const modalBody = document.getElementById('modal-body');
             modalBody.innerHTML = `
                 <div class="employee-detail">
@@ -510,23 +512,23 @@
                     </div>
                 </div>
             `;
-            
+
             document.getElementById('employee-modal').style.display = 'block';
         }
-        
+
         function editEmployeeLocal(id) {
             console.log('Editing employee with ID:', id);
-            
+
             const employees = JSON.parse(localStorage.getItem('employees')) || [];
             const employee = employees.find(emp => emp.id == id);
-            
+
             if (!employee) {
                 alert('Data pegawai tidak ditemukan!');
                 return;
             }
-            
+
             currentEmployeeId = id;
-            
+
             // Fill form with employee data
             document.getElementById('nama').value = employee.nama || '';
             document.getElementById('nip').value = employee.nip || '';
@@ -537,66 +539,66 @@
             document.getElementById('tempat-lahir').value = employee.tempatLahir || '';
             document.getElementById('tanggal-lahir').value = employee.tanggalLahir || '';
             document.getElementById('alamat').value = employee.alamat || '';
-            
+
             if (employee.foto) {
                 document.getElementById('image-preview').innerHTML = `<img src="${employee.foto}" alt="Preview">`;
             }
-            
+
             // Change form title to indicate editing
             const formTitle = document.getElementById('form-title');
             if (formTitle) {
                 formTitle.textContent = 'Edit Data Pegawai';
             }
-            
+
             // Close modal if open and switch to add tab
             closeModalLocal();
             showTab('add');
         }
-        
+
         function deleteEmployeeLocal(id) {
             console.log('Deleting employee with ID:', id);
-            
+
             const employees = JSON.parse(localStorage.getItem('employees')) || [];
             const employee = employees.find(emp => emp.id == id);
-            
+
             if (!employee) {
                 alert('Data pegawai tidak ditemukan!');
                 return;
             }
-            
+
             if (confirm(`Apakah Anda yakin ingin menghapus data pegawai "${employee.nama}"?`)) {
                 // Remove employee from array
                 const updatedEmployees = employees.filter(emp => emp.id != id);
-                
+
                 // Save to localStorage
                 localStorage.setItem('employees', JSON.stringify(updatedEmployees));
-                
+
                 // Close modal if open
                 closeModalLocal();
-                
+
                 // Refresh displays
                 updateAllDisplaysNow(updatedEmployees);
-                
+
                 alert('Data pegawai berhasil dihapus!');
-                
+
                 // Switch to data tab to show updated list
                 showTab('data');
             }
         }
-        
+
         function closeModalLocal() {
             document.getElementById('employee-modal').style.display = 'none';
             currentEmployeeId = null;
         }
-        
+
         // Override modal functions to use local versions
         window.closeModal = closeModalLocal;
-        window.editEmployee = function() {
+        window.editEmployee = function () {
             if (currentEmployeeId) {
                 editEmployeeLocal(currentEmployeeId);
             }
         };
-        window.deleteEmployee = function() {
+        window.deleteEmployee = function () {
             if (currentEmployeeId) {
                 deleteEmployeeLocal(currentEmployeeId);
             }
@@ -605,38 +607,38 @@
         // Generate PDF function
         function generatePDFLocal(type) {
             console.log('Generating PDF:', type);
-            
+
             // Check if jsPDF is available
             if (typeof window.jspdf === 'undefined') {
                 alert('Library PDF belum dimuat. Silakan refresh halaman dan coba lagi.');
                 return;
             }
-            
+
             try {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
-                
+
                 // Header
                 doc.setFontSize(16);
                 doc.text('BADAN PENANGGULANGAN BENCANA DAERAH', 105, 20, { align: 'center' });
                 doc.text('KOTA TIDORE KEPULAUAN', 105, 30, { align: 'center' });
                 doc.setFontSize(14);
                 doc.text('DATA PEGAWAI', 105, 40, { align: 'center' });
-                
+
                 // Add date
                 doc.setFontSize(10);
                 doc.text(`Tanggal: ${new Date().toLocaleDateString('id-ID')}`, 20, 50);
-                
+
                 let yPosition = 60;
                 const employees = JSON.parse(localStorage.getItem('employees')) || [];
-                
+
                 if (type === 'single' && currentEmployeeId) {
                     const employee = employees.find(emp => emp.id == currentEmployeeId);
                     if (employee) {
                         doc.setFontSize(12);
                         doc.text('DETAIL PEGAWAI', 105, yPosition, { align: 'center' });
                         yPosition += 15;
-                        
+
                         doc.setFontSize(11);
                         doc.text(`Nama: ${employee.nama}`, 20, yPosition);
                         yPosition += 8;
@@ -655,7 +657,7 @@
                         doc.text(`Tanggal Lahir: ${employee.tanggalLahir ? new Date(employee.tanggalLahir).toLocaleDateString('id-ID') : '-'}`, 20, yPosition);
                         yPosition += 8;
                         doc.text(`Alamat: ${employee.alamat || '-'}`, 20, yPosition);
-                        
+
                         doc.save(`Data_Pegawai_${employee.nama.replace(/\s+/g, '_')}.pdf`);
                     } else {
                         alert('Data pegawai tidak ditemukan!');
@@ -666,19 +668,19 @@
                         alert('Tidak ada data pegawai untuk di-export!');
                         return;
                     }
-                    
+
                     doc.setFontSize(12);
                     doc.text('DAFTAR SEMUA PEGAWAI', 105, yPosition, { align: 'center' });
                     yPosition += 15;
-                    
+
                     doc.setFontSize(10);
-                    
+
                     employees.forEach((employee, index) => {
                         if (yPosition > 250) {
                             doc.addPage();
                             yPosition = 20;
                         }
-                        
+
                         doc.text(`${index + 1}. ${employee.nama}`, 20, yPosition);
                         yPosition += 6;
                         doc.text(`    NIP: ${employee.nip || '-'}`, 25, yPosition);
@@ -690,37 +692,37 @@
                         doc.text(`    Golongan: ${employee.golongan || '-'}`, 25, yPosition);
                         yPosition += 10;
                     });
-                    
+
                     // Add summary
                     if (yPosition > 230) {
                         doc.addPage();
                         yPosition = 20;
                     }
-                    
+
                     yPosition += 10;
                     doc.setFontSize(12);
                     doc.text('RINGKASAN', 20, yPosition);
                     yPosition += 10;
-                    
+
                     doc.setFontSize(10);
                     doc.text(`Total Pegawai: ${employees.length}`, 20, yPosition);
                     yPosition += 6;
-                    
+
                     const pnsCount = employees.filter(emp => emp.status === 'PNS').length;
                     const pppkCount = employees.filter(emp => emp.status === 'PPPK').length;
                     const nonPnsCount = employees.filter(emp => !emp.status || emp.status === 'Non PNS').length;
-                    
+
                     doc.text(`PNS: ${pnsCount}`, 20, yPosition);
                     yPosition += 6;
                     doc.text(`PPPK: ${pppkCount}`, 20, yPosition);
                     yPosition += 6;
                     doc.text(`Non PNS: ${nonPnsCount}`, 20, yPosition);
-                    
+
                     doc.save('Data_Semua_Pegawai_BPBD.pdf');
                 }
-                
+
                 alert('PDF berhasil di-download!');
-                
+
             } catch (error) {
                 console.error('Error generating PDF:', error);
                 alert('Terjadi error saat membuat PDF: ' + error.message);
@@ -734,47 +736,45 @@
 
     <!-- Login Screen -->
     <div id="login-screen" class="login-screen">
-        <div class="login-container">
-            <div class="login-header">
-                <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iNDAiIGZpbGw9IiNGRjY3MDAiLz4KPHN2ZyB4PSIyMCIgeT0iMjAiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+CjxwYXRoIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0tMiAxNWwtNS01IDEuNDEtMS40MUwxMCAxNC4xN2w3LjU5LTcuNTlMMTkgOGwtOSA5eiIvPgo8L3N2Zz4KPC9zdmc+"
-                    alt="Logo BPBD" class="login-logo">
-                <h1>BPBD KOTA TIDORE KEPULAUAN</h1>
-                <p>Sistem Informasi Data Pegawai</p>
-            </div>
+        <!-- Background decorative elements -->
+        <div class="bg-decoration bg-circle-1"></div>
+        <div class="bg-decoration bg-circle-2"></div>
+        <div class="bg-decoration bg-circle-3"></div>
 
-            <div class="login-form">
-                <div class="form-group">
-                    <label for="username">
-                        <i class="fas fa-user"></i>
-                        Username
-                    </label>
-                    <input type="text" id="username" placeholder="Masukkan username">
-                </div>
-
-                <div class="form-group">
-                    <label for="password">
-                        <i class="fas fa-lock"></i>
-                        Password
-                    </label>
-                    <input type="password" id="password" placeholder="Masukkan password">
-                </div>
-
-                <button type="button" class="login-btn" onclick="doLoginNow()">
-                    <i class="fas fa-sign-in-alt"></i>
-                    Masuk
-                </button>
-
-                <div class="login-info">
-                    <h4>Akun Default:</h4>
-                    <p><strong>Admin:</strong> admin / admin123</p>
-                    <p><strong>User:</strong> user / user123</p>
-                    <div class="quick-login">
-                        <button type="button" onclick="doQuickAdmin()" class="quick-btn">Login Admin</button>
-                        <button type="button" onclick="doQuickUser()" class="quick-btn">Login User</button>
-                    </div>
-                </div>
-            </div>
+        <div class="login-container"></div>
+        <div class="login-header">
+            <img id="login-logo"
+                src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iNDAiIGZpbGw9IiNGRjY3MDAiLz4KPHN2ZyB4PSIyMCIgeT0iMjAiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+CjxwYXRoIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0tMiAxNWwtNS01IDEuNDEtMS40MUwxMCAxNC4xN2w3LjU5LTcuNTlMMTkgOGwtOSA5eiIvPgo8L3N2Zz4KPC9zdmc+"
+                alt="Logo BPBD" class="login-logo">
+            <h1>BPBD KOTA TIDORE KEPULAUAN</h1>
+            <p>Sistem Informasi Data Pegawai</p>
         </div>
+
+        <div class="login-form">
+            <div class="form-group">
+                <label for="username">
+                    <i class="fas fa-user"></i>
+                    Username
+                </label>
+                <input type="text" id="username" placeholder="Masukkan username">
+            </div>
+
+            <div class="form-group">
+                <label for="password">
+                    <i class="fas fa-lock"></i>
+                    Password
+                </label>
+                <input type="password" id="password" placeholder="Masukkan password">
+            </div>
+
+            <button type="button" class="login-btn" onclick="doLoginNow()">
+                <i class="fas fa-sign-in-alt"></i>
+                Masuk
+            </button>
+
+
+        </div>
+    </div>
     </div>
 
     <div class="container" id="main-app" style="display: none;">

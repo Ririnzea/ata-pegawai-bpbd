@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test PDF Generation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            background: #f5f5f5; 
+        }
+        .test-container { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 10px; 
+            margin: 20px 0; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-btn { 
+            padding: 12px 24px; 
+            margin: 10px; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            color: white;
+            font-size: 14px;
+        }
+        .btn-primary { background: #007bff; }
+        .btn-success { background: #28a745; }
+        .btn-warning { background: #ffc107; color: #212529; }
+        .btn-danger { background: #dc3545; }
+        .log { 
+            background: #f8f9fa; 
+            border: 1px solid #dee2e6; 
+            border-radius: 5px; 
+            padding: 15px; 
+            margin: 10px 0; 
+            max-height: 300px; 
+            overflow-y: auto; 
+        }
+        .log-entry { 
+            margin: 5px 0; 
+            padding: 8px; 
+            border-left: 3px solid #007bff; 
+            background: white; 
+            border-radius: 3px;
+        }
+        .success { border-left-color: #28a745; }
+        .error { border-left-color: #dc3545; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test PDF Generation</h1>
+    
+    <div class="test-container">
+        <h3>📋 Test Controls</h3>
+        <button class="test-btn btn-primary" onclick="checkLibrary()">
+            📚 Check jsPDF Library
+        </button>
+        <button class="test-btn btn-success" onclick="addSampleData()">
+            👥 Add Sample Employees
+        </button>
+        <button class="test-btn btn-warning" onclick="testSinglePDF()">
+            📄 Test Single Employee PDF
+        </button>
+        <button class="test-btn btn-danger" onclick="testAllPDF()">
+            📑 Test All Employees PDF
+        </button>
+    </div>
+    
+    <div class="test-container">
+        <h3>📊 Sample Data</h3>
+        <div id="employee-list"></div>
+    </div>
+    
+    <div class="test-container">
+        <h3>📝 Activity Log</h3>
+        <div class="log" id="log-container"></div>
+    </div>
+    
+    <script>
+        let sampleEmployees = [];
+        let logEntries = [];
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            logEntries.push({ timestamp, message, type });
+            updateLog();
+        }
+        
+        function updateLog() {
+            const container = document.getElementById('log-container');
+            container.innerHTML = logEntries.map(entry => 
+                `<div class="log-entry ${entry.type}">
+                    <strong>${entry.timestamp}</strong>: ${entry.message}
+                </div>`
+            ).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function checkLibrary() {
+            log('🔍 Checking jsPDF library availability...');
+            
+            if (typeof window.jspdf !== 'undefined') {
+                log('✅ jsPDF library is available!', 'success');
+                
+                try {
+                    const { jsPDF } = window.jspdf;
+                    log('✅ jsPDF constructor accessible', 'success');
+                    
+                    const testDoc = new jsPDF();
+                    log('✅ jsPDF instance created successfully', 'success');
+                    
+                } catch (error) {
+                    log(`❌ Error creating jsPDF instance: ${error.message}`, 'error');
+                }
+            } else {
+                log('❌ jsPDF library is NOT available!', 'error');
+            }
+        }
+        
+        function addSampleData() {
+            log('👥 Adding sample employee data...');
+            
+            sampleEmployees = [
+                {
+                    id: 1,
+                    nama: 'Ahmad Hidayat',
+                    nip: '198501012010011001',
+                    jabatan: 'Kepala Pelaksana BPBD',
+                    status: 'PNS',
+                    golongan: 'IVa',
+                    masaKerja: '15',
+                    tempatLahir: 'Tidore',
+                    tanggalLahir: '1985-01-01',
+                    alamat: 'Jl. Sultan Nuku No. 1, Tidore'
+                },
+                {
+                    id: 2,
+                    nama: 'Siti Nurhaliza',
+                    nip: '199002152015032001',
+                    jabatan: 'Staf Pencegahan',
+                    status: 'PNS',
+                    golongan: 'IIIb',
+                    masaKerja: '10',
+                    tempatLahir: 'Ternate',
+                    tanggalLahir: '1990-02-15',
+                    alamat: 'Jl. Pahlawan No. 25, Tidore'
+                },
+                {
+                    id: 3,
+                    nama: 'Muhammad Rizki',
+                    nip: '199505202020121002',
+                    jabatan: 'Staf Kedaruratan',
+                    status: 'PPPK',
+                    golongan: 'IIIa',
+                    masaKerja: '5',
+                    tempatLahir: 'Tidore',
+                    tanggalLahir: '1995-05-20',
+                    alamat: 'Jl. Merdeka No. 10, Tidore'
+                }
+            ];
+            
+            // Save to localStorage
+            localStorage.setItem('employees', JSON.stringify(sampleEmployees));
+            
+            // Display sample data
+            const container = document.getElementById('employee-list');
+            container.innerHTML = sampleEmployees.map(emp => 
+                `<div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                    <strong>${emp.nama}</strong> - ${emp.jabatan} (${emp.status})
+                </div>`
+            ).join('');
+            
+            log(`✅ Added ${sampleEmployees.length} sample employees`, 'success');
+        }
+        
+        function testSinglePDF() {
+            log('📄 Testing single employee PDF generation...');
+            
+            if (sampleEmployees.length === 0) {
+                log('❌ No sample data available. Add sample data first.', 'error');
+                return;
+            }
+            
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                const employee = sampleEmployees[0];
+                
+                // Header
+                doc.setFontSize(16);
+                doc.text('BADAN PENANGGULANGAN BENCANA DAERAH', 105, 20, { align: 'center' });
+                doc.text('KOTA TIDORE KEPULAUAN', 105, 30, { align: 'center' });
+                doc.setFontSize(14);
+                doc.text('DATA PEGAWAI', 105, 40, { align: 'center' });
+                
+                // Add date
+                doc.setFontSize(10);
+                doc.text(`Tanggal: ${new Date().toLocaleDateString('id-ID')}`, 20, 50);
+                
+                let yPosition = 70;
+                
+                doc.setFontSize(12);
+                doc.text('DETAIL PEGAWAI', 105, yPosition, { align: 'center' });
+                yPosition += 15;
+                
+                doc.setFontSize(11);
+                doc.text(`Nama: ${employee.nama}`, 20, yPosition);
+                yPosition += 8;
+                doc.text(`NIP: ${employee.nip || '-'}`, 20, yPosition);
+                yPosition += 8;
+                doc.text(`Jabatan: ${employee.jabatan}`, 20, yPosition);
+                yPosition += 8;
+                doc.text(`Status: ${employee.status || 'Non PNS'}`, 20, yPosition);
+                yPosition += 8;
+                doc.text(`Golongan: ${employee.golongan || '-'}`, 20, yPosition);
+                yPosition += 8;
+                doc.text(`Masa Kerja: ${employee.masaKerja ? employee.masaKerja + ' tahun' : '-'}`, 20, yPosition);
+                yPosition += 8;
+                doc.text(`Tempat Lahir: ${employee.tempatLahir || '-'}`, 20, yPosition);
+                yPosition += 8;
+                doc.text(`Tanggal Lahir: ${employee.tanggalLahir ? new Date(employee.tanggalLahir).toLocaleDateString('id-ID') : '-'}`, 20, yPosition);
+                yPosition += 8;
+                doc.text(`Alamat: ${employee.alamat || '-'}`, 20, yPosition);
+                
+                doc.save(`Test_Data_Pegawai_${employee.nama.replace(/\s+/g, '_')}.pdf`);
+                
+                log('✅ Single employee PDF generated successfully!', 'success');
+                
+            } catch (error) {
+                log(`❌ Error generating single PDF: ${error.message}`, 'error');
+            }
+        }
+        
+        function testAllPDF() {
+            log('📑 Testing all employees PDF generation...');
+            
+            if (sampleEmployees.length === 0) {
+                log('❌ No sample data available. Add sample data first.', 'error');
+                return;
+            }
+            
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // Header
+                doc.setFontSize(16);
+                doc.text('BADAN PENANGGULANGAN BENCANA DAERAH', 105, 20, { align: 'center' });
+                doc.text('KOTA TIDORE KEPULAUAN', 105, 30, { align: 'center' });
+                doc.setFontSize(14);
+                doc.text('DATA PEGAWAI', 105, 40, { align: 'center' });
+                
+                // Add date
+                doc.setFontSize(10);
+                doc.text(`Tanggal: ${new Date().toLocaleDateString('id-ID')}`, 20, 50);
+                
+                let yPosition = 70;
+                
+                doc.setFontSize(12);
+                doc.text('DAFTAR SEMUA PEGAWAI', 105, yPosition, { align: 'center' });
+                yPosition += 15;
+                
+                doc.setFontSize(10);
+                
+                sampleEmployees.forEach((employee, index) => {
+                    if (yPosition > 250) {
+                        doc.addPage();
+                        yPosition = 20;
+                    }
+                    
+                    doc.text(`${index + 1}. ${employee.nama}`, 20, yPosition);
+                    yPosition += 6;
+                    doc.text(`    NIP: ${employee.nip || '-'}`, 25, yPosition);
+                    yPosition += 6;
+                    doc.text(`    Jabatan: ${employee.jabatan}`, 25, yPosition);
+                    yPosition += 6;
+                    doc.text(`    Status: ${employee.status || 'Non PNS'}`, 25, yPosition);
+                    yPosition += 6;
+                    doc.text(`    Golongan: ${employee.golongan || '-'}`, 25, yPosition);
+                    yPosition += 10;
+                });
+                
+                // Add summary
+                if (yPosition > 230) {
+                    doc.addPage();
+                    yPosition = 20;
+                }
+                
+                yPosition += 10;
+                doc.setFontSize(12);
+                doc.text('RINGKASAN', 20, yPosition);
+                yPosition += 10;
+                
+                doc.setFontSize(10);
+                doc.text(`Total Pegawai: ${sampleEmployees.length}`, 20, yPosition);
+                yPosition += 6;
+                
+                const pnsCount = sampleEmployees.filter(emp => emp.status === 'PNS').length;
+                const pppkCount = sampleEmployees.filter(emp => emp.status === 'PPPK').length;
+                const nonPnsCount = sampleEmployees.filter(emp => !emp.status || emp.status === 'Non PNS').length;
+                
+                doc.text(`PNS: ${pnsCount}`, 20, yPosition);
+                yPosition += 6;
+                doc.text(`PPPK: ${pppkCount}`, 20, yPosition);
+                yPosition += 6;
+                doc.text(`Non PNS: ${nonPnsCount}`, 20, yPosition);
+                
+                doc.save('Test_Data_Semua_Pegawai_BPBD.pdf');
+                
+                log('✅ All employees PDF generated successfully!', 'success');
+                
+            } catch (error) {
+                log(`❌ Error generating all employees PDF: ${error.message}`, 'error');
+            }
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 PDF test page loaded');
+            checkLibrary();
+        });
+    </script>
+</body>
+</html>

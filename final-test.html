@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Final Test - Employee Functions</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body { padding: 20px; background: #f5f5f5; }
+        .test-container { background: white; padding: 20px; border-radius: 10px; margin: 20px 0; }
+        .test-btn { 
+            padding: 10px 20px; 
+            margin: 10px; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            color: white;
+        }
+        .btn-primary { background: #007bff; }
+        .btn-success { background: #28a745; }
+        .btn-warning { background: #ffc107; color: #212529; }
+        .btn-danger { background: #dc3545; }
+        .log { 
+            background: #f8f9fa; 
+            border: 1px solid #dee2e6; 
+            border-radius: 5px; 
+            padding: 15px; 
+            margin: 10px 0; 
+            max-height: 300px; 
+            overflow-y: auto; 
+        }
+        .log-entry { 
+            margin: 5px 0; 
+            padding: 5px; 
+            border-left: 3px solid #007bff; 
+            background: white; 
+        }
+        .employee-card {
+            background: white;
+            border: 2px solid #f0f0f0;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            margin: 20px;
+            width: 250px;
+            display: inline-block;
+        }
+        .employee-card:hover {
+            border-color: #ff6700;
+            transform: translateY(-5px);
+        }
+    </style>
+</head>
+<body>
+    <h1>Final Test - Employee Functions</h1>
+    
+    <div class="test-container">
+        <h3>Test Controls</h3>
+        <button class="test-btn btn-primary" onclick="checkFunctions()">
+            <i class="fas fa-check"></i> Check Functions
+        </button>
+        <button class="test-btn btn-success" onclick="addTestEmployee()">
+            <i class="fas fa-plus"></i> Add Test Employee
+        </button>
+        <button class="test-btn btn-warning" onclick="testAllFunctions()">
+            <i class="fas fa-play"></i> Test All Functions
+        </button>
+        <button class="test-btn btn-danger" onclick="clearLog()">
+            <i class="fas fa-trash"></i> Clear Log
+        </button>
+    </div>
+    
+    <div class="test-container">
+        <h3>Test Employee Cards</h3>
+        <div id="employee-container"></div>
+    </div>
+    
+    <div class="test-container">
+        <h3>Activity Log</h3>
+        <div class="log" id="log-container"></div>
+    </div>
+    
+    <!-- Modal for Employee Details -->
+    <div id="employee-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <div id="modal-body"></div>
+            <div class="modal-actions">
+                <button onclick="editEmployee()" class="btn-primary">
+                    <i class="fas fa-edit"></i> Edit
+                </button>
+                <button onclick="deleteEmployee()" class="btn-danger">
+                    <i class="fas fa-trash"></i> Hapus
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let testEmployees = [];
+        let logEntries = [];
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            logEntries.push({ timestamp, message, type });
+            updateLog();
+        }
+        
+        function updateLog() {
+            const container = document.getElementById('log-container');
+            container.innerHTML = logEntries.map(entry => 
+                `<div class="log-entry" style="border-left-color: ${entry.type === 'error' ? '#dc3545' : entry.type === 'success' ? '#28a745' : '#007bff'}">
+                    <strong>${entry.timestamp}</strong>: ${entry.message}
+                </div>`
+            ).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function clearLog() {
+            logEntries = [];
+            updateLog();
+        }
+        
+        function checkFunctions() {
+            log('=== Checking Function Availability ===');
+            
+            const functions = [
+                'showEmployeeDetail',
+                'editEmployeeFromCard', 
+                'deleteEmployeeFromCard',
+                'closeModal',
+                'editEmployee',
+                'deleteEmployee',
+                'handleEmployeeAction'
+            ];
+            
+            functions.forEach(funcName => {
+                if (typeof window[funcName] === 'function') {
+                    log(`✅ ${funcName} available`, 'success');
+                } else {
+                    log(`❌ ${funcName} NOT available`, 'error');
+                }
+            });
+        }
+        
+        function addTestEmployee() {
+            const id = Date.now();
+            const employee = {
+                id: id,
+                nama: `Test Employee ${testEmployees.length + 1}`,
+                nip: `12345678${testEmployees.length}`,
+                jabatan: 'Staf Pencegahan',
+                status: 'PNS',
+                golongan: 'IIIa',
+                masaKerja: '5',
+                tempatLahir: 'Jakarta',
+                tanggalLahir: '1990-01-01',
+                alamat: 'Jl. Test No. 123',
+                foto: ''
+            };
+            
+            testEmployees.push(employee);
+            
+            // Also save to localStorage
+            let employees = JSON.parse(localStorage.getItem('employees')) || [];
+            employees.push(employee);
+            localStorage.setItem('employees', JSON.stringify(employees));
+            
+            renderEmployees();
+            log(`✅ Employee added: ${employee.nama} (ID: ${id})`, 'success');
+        }
+        
+        function renderEmployees() {
+            const container = document.getElementById('employee-container');
+            container.innerHTML = testEmployees.map(employee => `
+                <div class="employee-card" data-employee-id="${employee.id}">
+                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iNDAiIGZpbGw9IiNkZGQiLz4KPHN2ZyB4PSIyNSIgeT0iMjAiIHdpZHRoPSIzMCIgaGVpZ2h0PSIzMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+CjxwYXRoIGQ9Ik0xMiAxMmMyLjIxIDAgNC0xLjc5IDQtNHMtMS43OS00LTQtNC00IDEuNzktNCA0IDEuNzkgNCA0IDR6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiLz4KPC9zdmc+Cjwvc3ZnPg==" 
+                         alt="${employee.nama}" class="employee-photo">
+                    <h3>${employee.nama}</h3>
+                    <div class="jabatan">${employee.jabatan}</div>
+                    <div class="nip">${employee.nip || 'NIP: -'}</div>
+                    <span class="status-badge pns">${employee.status || 'Non PNS'}</span>
+                    <div class="card-actions">
+                        <button onclick="testDetail(${employee.id})" class="action-btn detail-btn" title="Detail">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button onclick="testEdit(${employee.id})" class="action-btn edit-btn" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="testDelete(${employee.id})" class="action-btn delete-btn" title="Hapus">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function testDetail(id) {
+            log(`🔍 Testing Detail for ID: ${id}`);
+            
+            if (typeof window.showEmployeeDetail === 'function') {
+                try {
+                    window.showEmployeeDetail(id);
+                    log(`✅ showEmployeeDetail called successfully`, 'success');
+                } catch (error) {
+                    log(`❌ showEmployeeDetail error: ${error.message}`, 'error');
+                }
+            } else if (typeof window.handleEmployeeAction === 'function') {
+                try {
+                    window.handleEmployeeAction('detail', id);
+                    log(`✅ handleEmployeeAction('detail') called successfully`, 'success');
+                } catch (error) {
+                    log(`❌ handleEmployeeAction error: ${error.message}`, 'error');
+                }
+            } else {
+                log(`❌ No detail function available`, 'error');
+            }
+        }
+        
+        function testEdit(id) {
+            log(`✏️ Testing Edit for ID: ${id}`);
+            
+            if (typeof window.editEmployeeFromCard === 'function') {
+                try {
+                    window.editEmployeeFromCard(id);
+                    log(`✅ editEmployeeFromCard called successfully`, 'success');
+                } catch (error) {
+                    log(`❌ editEmployeeFromCard error: ${error.message}`, 'error');
+                }
+            } else if (typeof window.handleEmployeeAction === 'function') {
+                try {
+                    window.handleEmployeeAction('edit', id);
+                    log(`✅ handleEmployeeAction('edit') called successfully`, 'success');
+                } catch (error) {
+                    log(`❌ handleEmployeeAction error: ${error.message}`, 'error');
+                }
+            } else {
+                log(`❌ No edit function available`, 'error');
+            }
+        }
+        
+        function testDelete(id) {
+            log(`🗑️ Testing Delete for ID: ${id}`);
+            
+            if (typeof window.deleteEmployeeFromCard === 'function') {
+                try {
+                    window.deleteEmployeeFromCard(id);
+                    log(`✅ deleteEmployeeFromCard called successfully`, 'success');
+                } catch (error) {
+                    log(`❌ deleteEmployeeFromCard error: ${error.message}`, 'error');
+                }
+            } else if (typeof window.handleEmployeeAction === 'function') {
+                try {
+                    window.handleEmployeeAction('delete', id);
+                    log(`✅ handleEmployeeAction('delete') called successfully`, 'success');
+                } catch (error) {
+                    log(`❌ handleEmployeeAction error: ${error.message}`, 'error');
+                }
+            } else {
+                log(`❌ No delete function available`, 'error');
+            }
+        }
+        
+        function testAllFunctions() {
+            if (testEmployees.length === 0) {
+                log('❌ No test employees available. Add one first.', 'error');
+                return;
+            }
+            
+            const testId = testEmployees[0].id;
+            log('=== Testing All Functions ===');
+            
+            setTimeout(() => testDetail(testId), 500);
+            setTimeout(() => testEdit(testId), 1000);
+            setTimeout(() => testDelete(testId), 1500);
+        }
+        
+        // Fallback functions
+        function closeModal() {
+            document.getElementById('employee-modal').style.display = 'none';
+            log('📝 Modal closed');
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 Final test page loaded');
+            
+            // Load script.js
+            const script = document.createElement('script');
+            script.src = 'script.js';
+            script.onload = function() {
+                log('✅ script.js loaded successfully', 'success');
+                setTimeout(() => {
+                    checkFunctions();
+                }, 500);
+            };
+            script.onerror = function() {
+                log('❌ Failed to load script.js', 'error');
+            };
+            document.head.appendChild(script);
+        });
+    </script>
+</body>
+</html>

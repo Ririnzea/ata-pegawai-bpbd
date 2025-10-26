@@ -1,0 +1,1766 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Pegawai BPBD Kota Tidore Kepulauan</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <script>
+        // Simple login functions that definitely work
+        function doLoginNow() {
+            console.log('Login button clicked!');
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+
+            console.log('Username:', username, 'Password:', password);
+
+            if (!username || !password) {
+                alert('Harap isi username dan password!');
+                return;
+            }
+
+            // Check credentials
+            if ((username === 'admin' && password === 'admin123') ||
+                (username === 'user' && password === 'user123')) {
+
+                const userData = {
+                    username: username,
+                    name: username === 'admin' ? 'Administrator' : 'User',
+                    role: username === 'admin' ? 'admin' : 'user'
+                };
+
+                localStorage.setItem('currentUser', JSON.stringify(userData));
+
+                alert('Login berhasil!');
+
+                // Hide login screen and show main app
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('main-app').style.display = 'block';
+                document.getElementById('current-user').textContent = userData.name;
+
+                console.log('Login successful, main app shown');
+
+                // Initialize all app functions
+                setTimeout(() => {
+                    initializeApp();
+                }, 100);
+            } else {
+                alert('Username atau password salah!');
+            }
+        }
+
+        function doQuickAdmin() {
+            document.getElementById('username').value = 'admin';
+            document.getElementById('password').value = 'admin123';
+            doLoginNow();
+        }
+
+        function doQuickUser() {
+            document.getElementById('username').value = 'user';
+            document.getElementById('password').value = 'user123';
+            doLoginNow();
+        }
+
+        // Check if already logged in when page loads
+        document.addEventListener('DOMContentLoaded', function () {
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                try {
+                    const userData = JSON.parse(savedUser);
+                    document.getElementById('login-screen').style.display = 'none';
+                    document.getElementById('main-app').style.display = 'block';
+                    document.getElementById('current-user').textContent = userData.name;
+
+                    // Initialize app
+                    setTimeout(() => {
+                        initializeApp();
+                    }, 100);
+                } catch (e) {
+                    localStorage.removeItem('currentUser');
+                }
+            }
+
+            // Add Enter key support
+            document.getElementById('username').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') doLoginNow();
+            });
+
+            document.getElementById('password').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') doLoginNow();
+            });
+        });
+
+        // Initialize all app functions
+        function initializeApp() {
+            console.log('Initializing app functions...');
+
+            // Load employees data
+            window.employees = JSON.parse(localStorage.getItem('employees')) || [];
+
+            // Initialize all functions
+            setupAllFunctions();
+
+            // Load data into displays
+            displayEmployees();
+            updateDashboard();
+            updateSummary();
+            updateCurrentDate();
+
+            console.log('App initialized successfully');
+        }
+
+        // Setup all app functions
+        function setupAllFunctions() {
+            // Tab navigation
+            window.showTab = function (tabName) {
+                console.log('Switching to tab:', tabName);
+
+                // Hide all tabs
+                document.querySelectorAll('.tab-content').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+
+                // Remove active class from all buttons
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+
+                // Show selected tab
+                const targetTab = document.getElementById(tabName + '-tab');
+                if (targetTab) {
+                    targetTab.classList.add('active');
+                }
+
+                // Add active class to clicked button
+                const targetBtn = document.querySelector(`[onclick="showTab('${tabName}')"]`);
+                if (targetBtn) {
+                    targetBtn.classList.add('active');
+                }
+
+                // Update content based on tab
+                setTimeout(() => {
+                    if (tabName === 'data') {
+                        displayEmployees();
+                    } else if (tabName === 'dashboard') {
+                        updateDashboard();
+                    } else if (tabName === 'report') {
+                        updateSummary();
+                    }
+                }, 50);
+            };
+
+            // Edit logo function
+            window.editLogo = function () {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.onchange = function (e) {
+                    if (e.target.files && e.target.files[0]) {
+                        const reader = new FileReader();
+                        reader.onload = function (event) {
+                            document.getElementById('logo').src = event.target.result;
+                            localStorage.setItem('customLogo', event.target.result);
+                        };
+                        reader.readAsDataURL(e.target.files[0]);
+                    }
+                };
+                input.click();
+            };
+
+            // Logout function
+            window.logout = function () {
+                if (confirm('Yakin ingin logout?')) {
+                    localStorage.removeItem('currentUser');
+                    document.getElementById('username').value = '';
+                    document.getElementById('password').value = '';
+                    document.getElementById('login-screen').style.display = 'flex';
+                    document.getElementById('main-app').style.display = 'none';
+                }
+            };
+
+            // Search and filter functions
+            window.searchEmployee = function () {
+                // Always reload from localStorage first
+                window.employees = JSON.parse(localStorage.getItem('employees')) || [];
+
+                const searchTerm = document.getElementById('search').value.toLowerCase();
+                if (!searchTerm) {
+                    displayEmployees();
+                    return;
+                }
+
+                const filtered = window.employees.filter(emp =>
+                    emp.nama.toLowerCase().includes(searchTerm) ||
+                    (emp.nip && emp.nip.toLowerCase().includes(searchTerm)) ||
+                    emp.jabatan.toLowerCase().includes(searchTerm) ||
+                    (emp.status && emp.status.toLowerCase().includes(searchTerm))
+                );
+                displayEmployees(filtered);
+            };
+
+            window.filterByJabatan = function () {
+                // Always reload from localStorage first
+                window.employees = JSON.parse(localStorage.getItem('employees')) || [];
+
+                const jabatan = document.getElementById('jabatan-filter').value;
+                if (!jabatan) {
+                    displayEmployees();
+                    return;
+                }
+                const filtered = window.employees.filter(emp => emp.jabatan === jabatan);
+                displayEmployees(filtered);
+            };
+
+            window.filterByStatus = function () {
+                // Always reload from localStorage first
+                window.employees = JSON.parse(localStorage.getItem('employees')) || [];
+
+                const status = document.getElementById('status-filter').value;
+                if (!status) {
+                    displayEmployees();
+                    return;
+                }
+                const filtered = window.employees.filter(emp => emp.status === status);
+                displayEmployees(filtered);
+            };
+
+            window.filterByGolongan = function () {
+                // Always reload from localStorage first
+                window.employees = JSON.parse(localStorage.getItem('employees')) || [];
+
+                const golongan = document.getElementById('golongan-filter').value;
+                if (!golongan) {
+                    displayEmployees();
+                    return;
+                }
+                const filtered = window.employees.filter(emp => emp.golongan === golongan);
+                displayEmployees(filtered);
+            };
+
+            // Preview image function
+            window.previewImage = function (input) {
+                const preview = document.getElementById('image-preview');
+                if (input.files && input.files[0]) {
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+                    };
+                    reader.readAsDataURL(input.files[0]);
+                }
+            };
+
+            // Generate PDF function
+            window.generatePDF = function (type) {
+                generatePDFLocal(type);
+            };
+
+            // Print report function
+            window.printReport = function () {
+                window.print();
+            };
+
+            // Employee detail functions - these will be overridden by the actual functions below
+            window.showEmployeeDetail = function (id) {
+                console.log('Placeholder showEmployeeDetail called for ID:', id);
+            };
+
+            window.closeModal = function () {
+                const modal = document.getElementById('employee-modal');
+                if (modal) {
+                    modal.style.display = 'none';
+                }
+            };
+
+            window.editEmployee = function () {
+                console.log('Placeholder editEmployee called');
+            };
+
+            window.deleteEmployee = function () {
+                console.log('Placeholder deleteEmployee called');
+            };
+        }
+
+        // Display employees function
+        function displayEmployees(filteredEmployees = null) {
+            console.log('Displaying employees...');
+
+            const grid = document.getElementById('employee-grid');
+            if (!grid) return;
+
+            // Always reload from localStorage
+            window.employees = JSON.parse(localStorage.getItem('employees')) || [];
+            const employeesToShow = filteredEmployees || window.employees;
+
+            if (employeesToShow.length === 0) {
+                grid.innerHTML = '<p style="text-align: center; color: #666; grid-column: 1/-1;">Belum ada data pegawai</p>';
+                return;
+            }
+
+            grid.innerHTML = employeesToShow.map(employee => `
+                <div class="employee-card" data-employee-id="${employee.id}">
+                    <img src="${employee.foto || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iNDAiIGZpbGw9IiNkZGQiLz4KPHN2ZyB4PSIyNSIgeT0iMjAiIHdpZHRoPSIzMCIgaGVpZ2h0PSIzMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+CjxwYXRoIGQ9Ik0xMiAxMmMyLjIxIDAgNC0xLjc5IDQtNHMtMS43OS00LTQtNC00IDEuNzktNCA0IDEuNzkgNCA0IDR6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiLz4KPC9zdmc+Cjwvc3ZnPg=='}" 
+                         alt="${employee.nama}" class="employee-photo">
+                    <h3>${employee.nama}</h3>
+                    <div class="jabatan">${employee.jabatan}</div>
+                    <div class="nip">${employee.nip || 'NIP: -'}</div>
+                    <span class="status-badge ${employee.status ? employee.status.toLowerCase().replace(' ', '-') : 'non-pns'}">${employee.status || 'Non PNS'}</span>
+                    <div class="card-actions">
+                        <button onclick="handleEmployeeAction('detail', ${employee.id})" class="action-btn detail-btn" title="Detail">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button onclick="handleEmployeeAction('edit', ${employee.id})" class="action-btn edit-btn" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="handleEmployeeAction('delete', ${employee.id})" class="action-btn delete-btn" title="Hapus">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+
+        }
+
+        // Update dashboard function
+        function updateDashboard() {
+            console.log('Updating dashboard...');
+
+            window.employees = JSON.parse(localStorage.getItem('employees')) || [];
+
+            // Update statistics
+            const totalElement = document.getElementById('dash-total-employees');
+            if (totalElement) {
+                totalElement.textContent = window.employees.length;
+            }
+
+            // Count by status
+            const pnsCount = window.employees.filter(emp => emp.status === 'PNS').length;
+            const pppkCount = window.employees.filter(emp => emp.status === 'PPPK').length;
+            const nonPnsCount = window.employees.filter(emp => !emp.status || emp.status === 'Non PNS').length;
+
+            const pnsElement = document.getElementById('dash-pns');
+            const pppkElement = document.getElementById('dash-pppk');
+            const nonPnsElement = document.getElementById('dash-non-pns');
+
+            if (pnsElement) pnsElement.textContent = pnsCount;
+            if (pppkElement) pppkElement.textContent = pppkCount;
+            if (nonPnsElement) nonPnsElement.textContent = nonPnsCount;
+
+            // Count pimpinan vs staff
+            const pimpinanJabatan = ['Kepala Pelaksana BPBD', 'Sekretaris', 'Kepala Sub Bagian Perencanaan dan Keuangan', 'Kepala Sub Bagian Umum dan Kepegawaian', 'Kepala Bidang Pencegahan dan Kesiapsiagaan', 'Kepala Bidang Kedaruratan dan Logistik', 'Kepala Bidang Rehabilitasi dan Rekonstruksi'];
+            const pimpinanCount = window.employees.filter(emp => pimpinanJabatan.includes(emp.jabatan)).length;
+            const staffCount = window.employees.length - pimpinanCount;
+
+            const pimpinanElement = document.getElementById('dash-pimpinan');
+            const staffElement = document.getElementById('dash-staff');
+
+            if (pimpinanElement) pimpinanElement.textContent = pimpinanCount;
+            if (staffElement) staffElement.textContent = staffCount;
+        }
+
+        // Update summary function
+        function updateSummary() {
+            console.log('Updating summary...');
+
+            window.employees = JSON.parse(localStorage.getItem('employees')) || [];
+
+            const totalElement = document.getElementById('total-employees');
+            if (totalElement) {
+                totalElement.textContent = window.employees.length;
+            }
+
+            // Jabatan summary
+            const jabatanCount = {};
+            window.employees.forEach(emp => {
+                jabatanCount[emp.jabatan] = (jabatanCount[emp.jabatan] || 0) + 1;
+            });
+
+            const jabatanSummary = document.getElementById('jabatan-summary');
+            if (jabatanSummary) {
+                jabatanSummary.innerHTML = Object.entries(jabatanCount)
+                    .map(([jabatan, count]) => `<div>${jabatan}: ${count}</div>`)
+                    .join('');
+            }
+
+            // Status summary
+            const statusCount = {};
+            window.employees.forEach(emp => {
+                const status = emp.status || 'Non PNS';
+                statusCount[status] = (statusCount[status] || 0) + 1;
+            });
+
+            const statusSummary = document.getElementById('status-summary');
+            if (statusSummary) {
+                statusSummary.innerHTML = Object.entries(statusCount)
+                    .map(([status, count]) => `<div>${status}: ${count}</div>`)
+                    .join('');
+            }
+
+            // Golongan summary
+            const golonganCount = {};
+            window.employees.forEach(emp => {
+                if (emp.golongan) {
+                    golonganCount[emp.golongan] = (golonganCount[emp.golongan] || 0) + 1;
+                }
+            });
+
+            const golonganSummary = document.getElementById('golongan-summary');
+            if (golonganSummary) {
+                golonganSummary.innerHTML = Object.entries(golonganCount)
+                    .map(([golongan, count]) => `<div>Golongan ${golongan}: ${count}</div>`)
+                    .join('');
+            }
+        }
+
+        // Update current date function
+        function updateCurrentDate() {
+            const now = new Date();
+            const options = {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            };
+            const dateElement = document.getElementById('current-date');
+            if (dateElement) {
+                dateElement.textContent = now.toLocaleDateString('id-ID', options);
+            }
+        }
+
+        // Functions will be loaded from script.js
+
+        // Employee action functions - implemented directly in HTML
+        let currentEmployeeId = null;
+        
+        function handleEmployeeAction(action, id) {
+            console.log('handleEmployeeAction called:', action, id);
+            
+            if (action === 'detail') {
+                showEmployeeDetailLocal(id);
+            } else if (action === 'edit') {
+                editEmployeeLocal(id);
+            } else if (action === 'delete') {
+                deleteEmployeeLocal(id);
+            }
+        }
+        
+        function showEmployeeDetailLocal(id) {
+            console.log('Showing employee detail for ID:', id);
+            
+            const employees = JSON.parse(localStorage.getItem('employees')) || [];
+            const employee = employees.find(emp => emp.id == id);
+            
+            if (!employee) {
+                alert('Data pegawai tidak ditemukan!');
+                return;
+            }
+            
+            currentEmployeeId = id;
+            
+            const modalBody = document.getElementById('modal-body');
+            modalBody.innerHTML = `
+                <div class="employee-detail">
+                    <img src="${employee.foto || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDEyMCAxMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxjaXJjbGUgY3g9IjYwIiBjeT0iNjAiIHI9IjYwIiBmaWxsPSIjZGRkIi8+CjxzdmcgeD0iMzciIHk9IjMwIiB3aWR0aD0iNDYiIGhlaWdodD0iNDYiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPgo8cGF0aCBkPSJNMTIgMTJjMi4yMSAwIDQtMS43OSA0LTRzLTEuNzktNC00LTQtNCAxLjc5LTQgNCAxLjc5IDQgNCA0em0wIDJjLTIuNjcgMC04IDEuMzQtOCA0djJoMTZ2LTJjMC0yLjY2LTUuMzMtNC04LTR6Ii8+Cjwvc3ZnPgo8L3N2Zz4='}" 
+                         alt="${employee.nama}" class="photo">
+                    <h2>${employee.nama}</h2>
+                    <div class="info">
+                        <div class="info-row">
+                            <div class="info-label">NIP:</div>
+                            <div class="info-value">${employee.nip || '-'}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Jabatan:</div>
+                            <div class="info-value">${employee.jabatan}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Status:</div>
+                            <div class="info-value">
+                                <span class="status-badge ${employee.status ? employee.status.toLowerCase().replace(' ', '-') : 'non-pns'}">${employee.status || 'Non PNS'}</span>
+                            </div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Golongan:</div>
+                            <div class="info-value">${employee.golongan || '-'}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Masa Kerja:</div>
+                            <div class="info-value">${employee.masaKerja ? employee.masaKerja + ' tahun' : '-'}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Tempat Lahir:</div>
+                            <div class="info-value">${employee.tempatLahir || '-'}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Tanggal Lahir:</div>
+                            <div class="info-value">${employee.tanggalLahir ? new Date(employee.tanggalLahir).toLocaleDateString('id-ID') : '-'}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Alamat:</div>
+                            <div class="info-value">${employee.alamat || '-'}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('employee-modal').style.display = 'block';
+        }
+        
+        function editEmployeeLocal(id) {
+            console.log('Editing employee with ID:', id);
+            
+            const employees = JSON.parse(localStorage.getItem('employees')) || [];
+            const employee = employees.find(emp => emp.id == id);
+            
+            if (!employee) {
+                alert('Data pegawai tidak ditemukan!');
+                return;
+            }
+            
+            currentEmployeeId = id;
+            
+            // Fill form with employee data
+            document.getElementById('nama').value = employee.nama || '';
+            document.getElementById('nip').value = employee.nip || '';
+            document.getElementById('jabatan').value = employee.jabatan || '';
+            document.getElementById('status').value = employee.status || '';
+            document.getElementById('golongan').value = employee.golongan || '';
+            document.getElementById('masa-kerja').value = employee.masaKerja || '';
+            document.getElementById('tempat-lahir').value = employee.tempatLahir || '';
+            document.getElementById('tanggal-lahir').value = employee.tanggalLahir || '';
+            document.getElementById('alamat').value = employee.alamat || '';
+            
+            if (employee.foto) {
+                document.getElementById('image-preview').innerHTML = `<img src="${employee.foto}" alt="Preview">`;
+            }
+            
+            // Change form title to indicate editing
+            const formTitle = document.getElementById('form-title');
+            if (formTitle) {
+                formTitle.textContent = 'Edit Data Pegawai';
+            }
+            
+            // Close modal if open and switch to add tab
+            closeModalLocal();
+            showTab('add');
+        }
+        
+        function deleteEmployeeLocal(id) {
+            console.log('Deleting employee with ID:', id);
+            
+            const employees = JSON.parse(localStorage.getItem('employees')) || [];
+            const employee = employees.find(emp => emp.id == id);
+            
+            if (!employee) {
+                alert('Data pegawai tidak ditemukan!');
+                return;
+            }
+            
+            if (confirm(`Apakah Anda yakin ingin menghapus data pegawai "${employee.nama}"?`)) {
+                // Remove employee from array
+                const updatedEmployees = employees.filter(emp => emp.id != id);
+                
+                // Save to localStorage
+                localStorage.setItem('employees', JSON.stringify(updatedEmployees));
+                
+                // Close modal if open
+                closeModalLocal();
+                
+                // Refresh displays
+                updateAllDisplaysNow(updatedEmployees);
+                
+                alert('Data pegawai berhasil dihapus!');
+                
+                // Switch to data tab to show updated list
+                showTab('data');
+            }
+        }
+        
+        function closeModalLocal() {
+            document.getElementById('employee-modal').style.display = 'none';
+            currentEmployeeId = null;
+        }
+        
+        // Override modal functions to use local versions
+        window.closeModal = closeModalLocal;
+        window.editEmployee = function() {
+            if (currentEmployeeId) {
+                editEmployeeLocal(currentEmployeeId);
+            }
+        };
+        window.deleteEmployee = function() {
+            if (currentEmployeeId) {
+                deleteEmployeeLocal(currentEmployeeId);
+            }
+        };
+
+        // Generate PDF function
+        function generatePDFLocal(type) {
+            console.log('Generating PDF:', type);
+            
+            // Check if jsPDF is available
+            if (typeof window.jspdf === 'undefined') {
+                alert('Library PDF belum dimuat. Silakan refresh halaman dan coba lagi.');
+                return;
+            }
+            
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // Header
+                doc.setFontSize(16);
+                doc.text('BADAN PENANGGULANGAN BENCANA DAERAH', 105, 20, { align: 'center' });
+                doc.text('KOTA TIDORE KEPULAUAN', 105, 30, { align: 'center' });
+                doc.setFontSize(14);
+                doc.text('DATA PEGAWAI', 105, 40, { align: 'center' });
+                
+                // Add date
+                doc.setFontSize(10);
+                doc.text(`Tanggal: ${new Date().toLocaleDateString('id-ID')}`, 20, 50);
+                
+                let yPosition = 60;
+                const employees = JSON.parse(localStorage.getItem('employees')) || [];
+                
+                if (type === 'single' && currentEmployeeId) {
+                    const employee = employees.find(emp => emp.id == currentEmployeeId);
+                    if (employee) {
+                        doc.setFontSize(12);
+                        doc.text('DETAIL PEGAWAI', 105, yPosition, { align: 'center' });
+                        yPosition += 15;
+                        
+                        doc.setFontSize(11);
+                        doc.text(`Nama: ${employee.nama}`, 20, yPosition);
+                        yPosition += 8;
+                        doc.text(`NIP: ${employee.nip || '-'}`, 20, yPosition);
+                        yPosition += 8;
+                        doc.text(`Jabatan: ${employee.jabatan}`, 20, yPosition);
+                        yPosition += 8;
+                        doc.text(`Status: ${employee.status || 'Non PNS'}`, 20, yPosition);
+                        yPosition += 8;
+                        doc.text(`Golongan: ${employee.golongan || '-'}`, 20, yPosition);
+                        yPosition += 8;
+                        doc.text(`Masa Kerja: ${employee.masaKerja ? employee.masaKerja + ' tahun' : '-'}`, 20, yPosition);
+                        yPosition += 8;
+                        doc.text(`Tempat Lahir: ${employee.tempatLahir || '-'}`, 20, yPosition);
+                        yPosition += 8;
+                        doc.text(`Tanggal Lahir: ${employee.tanggalLahir ? new Date(employee.tanggalLahir).toLocaleDateString('id-ID') : '-'}`, 20, yPosition);
+                        yPosition += 8;
+                        doc.text(`Alamat: ${employee.alamat || '-'}`, 20, yPosition);
+                        
+                        doc.save(`Data_Pegawai_${employee.nama.replace(/\s+/g, '_')}.pdf`);
+                    } else {
+                        alert('Data pegawai tidak ditemukan!');
+                    }
+                } else {
+                    // Generate all employees PDF
+                    if (employees.length === 0) {
+                        alert('Tidak ada data pegawai untuk di-export!');
+                        return;
+                    }
+                    
+                    doc.setFontSize(12);
+                    doc.text('DAFTAR SEMUA PEGAWAI', 105, yPosition, { align: 'center' });
+                    yPosition += 15;
+                    
+                    doc.setFontSize(10);
+                    
+                    employees.forEach((employee, index) => {
+                        if (yPosition > 250) {
+                            doc.addPage();
+                            yPosition = 20;
+                        }
+                        
+                        doc.text(`${index + 1}. ${employee.nama}`, 20, yPosition);
+                        yPosition += 6;
+                        doc.text(`    NIP: ${employee.nip || '-'}`, 25, yPosition);
+                        yPosition += 6;
+                        doc.text(`    Jabatan: ${employee.jabatan}`, 25, yPosition);
+                        yPosition += 6;
+                        doc.text(`    Status: ${employee.status || 'Non PNS'}`, 25, yPosition);
+                        yPosition += 6;
+                        doc.text(`    Golongan: ${employee.golongan || '-'}`, 25, yPosition);
+                        yPosition += 10;
+                    });
+                    
+                    // Add summary
+                    if (yPosition > 230) {
+                        doc.addPage();
+                        yPosition = 20;
+                    }
+                    
+                    yPosition += 10;
+                    doc.setFontSize(12);
+                    doc.text('RINGKASAN', 20, yPosition);
+                    yPosition += 10;
+                    
+                    doc.setFontSize(10);
+                    doc.text(`Total Pegawai: ${employees.length}`, 20, yPosition);
+                    yPosition += 6;
+                    
+                    const pnsCount = employees.filter(emp => emp.status === 'PNS').length;
+                    const pppkCount = employees.filter(emp => emp.status === 'PPPK').length;
+                    const nonPnsCount = employees.filter(emp => !emp.status || emp.status === 'Non PNS').length;
+                    
+                    doc.text(`PNS: ${pnsCount}`, 20, yPosition);
+                    yPosition += 6;
+                    doc.text(`PPPK: ${pppkCount}`, 20, yPosition);
+                    yPosition += 6;
+                    doc.text(`Non PNS: ${nonPnsCount}`, 20, yPosition);
+                    
+                    doc.save('Data_Semua_Pegawai_BPBD.pdf');
+                }
+                
+                alert('PDF berhasil di-download!');
+                
+            } catch (error) {
+                console.error('Error generating PDF:', error);
+                alert('Terjadi error saat membuat PDF: ' + error.message);
+            }
+        }
+
+        // Make handler available globally
+        window.handleEmployeeAction = handleEmployeeAction;
+        window.generatePDFLocal = generatePDFLocal;
+    </script>
+
+    <!-- Login Screen -->
+    <div id="login-screen" class="login-screen">
+        <div class="login-container">
+            <div class="login-header">
+                <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iNDAiIGZpbGw9IiNGRjY3MDAiLz4KPHN2ZyB4PSIyMCIgeT0iMjAiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+CjxwYXRoIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0tMiAxNWwtNS01IDEuNDEtMS40MUwxMCAxNC4xN2w3LjU5LTcuNTlMMTkgOGwtOSA5eiIvPgo8L3N2Zz4KPC9zdmc+"
+                    alt="Logo BPBD" class="login-logo">
+                <h1>BPBD KOTA TIDORE KEPULAUAN</h1>
+                <p>Sistem Informasi Data Pegawai</p>
+            </div>
+
+            <div class="login-form">
+                <div class="form-group">
+                    <label for="username">
+                        <i class="fas fa-user"></i>
+                        Username
+                    </label>
+                    <input type="text" id="username" placeholder="Masukkan username">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">
+                        <i class="fas fa-lock"></i>
+                        Password
+                    </label>
+                    <input type="password" id="password" placeholder="Masukkan password">
+                </div>
+
+                <button type="button" class="login-btn" onclick="doLoginNow()">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Masuk
+                </button>
+
+                <div class="login-info">
+                    <h4>Akun Default:</h4>
+                    <p><strong>Admin:</strong> admin / admin123</p>
+                    <p><strong>User:</strong> user / user123</p>
+                    <div class="quick-login">
+                        <button type="button" onclick="doQuickAdmin()" class="quick-btn">Login Admin</button>
+                        <button type="button" onclick="doQuickUser()" class="quick-btn">Login User</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container" id="main-app" style="display: none;">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo-section">
+                <img id="logo"
+                    src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iNDAiIGZpbGw9IiNGRjY3MDAiLz4KPHN2ZyB4PSIyMCIgeT0iMjAiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+CjxwYXRoIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0tMiAxNWwtNS01IDEuNDEtMS40MUwxMCAxNC4xN2w3LjU5LTcuNTlMMTkgOGwtOSA5eiIvPgo8L3N2Zz4KPC9zdmc+"
+                    alt="Logo BPBD" class="logo">
+                <div class="header-text">
+                    <h1>BADAN PENANGGULANGAN BENCANA DAERAH</h1>
+                    <h2>KOTA TIDORE KEPULAUAN</h2>
+                    <p>Data Pegawai</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <div class="user-info">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="current-user">Admin</span>
+                </div>
+                <button class="logo-edit-btn" onclick="editLogo()">
+                    <i class="fas fa-edit"></i> Edit Logo
+                </button>
+                <button class="logout-btn" onclick="logout()" type="button">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="nav-tabs">
+            <button class="tab-btn active" onclick="showTab('dashboard')">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
+            </button>
+            <button class="tab-btn" onclick="showTab('data')">
+                <i class="fas fa-users"></i> Data Pegawai
+            </button>
+            <button class="tab-btn" onclick="showTab('add')">
+                <i class="fas fa-user-plus"></i> Tambah Pegawai
+            </button>
+            <button class="tab-btn" onclick="showTab('report')">
+                <i class="fas fa-file-pdf"></i> Laporan
+            </button>
+        </nav>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboard-tab" class="tab-content active">
+            <div class="dashboard-header">
+                <h2><i class="fas fa-chart-line"></i> Dashboard Pegawai BPBD</h2>
+                <div class="dashboard-date">
+                    <i class="fas fa-calendar"></i>
+                    <span id="current-date"></span>
+                </div>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="stats-grid">
+                <div class="stat-card total">
+                    <div class="stat-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="dash-total-employees">0</h3>
+                        <p>Total Pegawai</p>
+                    </div>
+                </div>
+
+                <div class="stat-card pimpinan">
+                    <div class="stat-icon">
+                        <i class="fas fa-user-tie"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="dash-pimpinan">0</h3>
+                        <p>Pimpinan</p>
+                    </div>
+                </div>
+
+                <div class="stat-card staff">
+                    <div class="stat-icon">
+                        <i class="fas fa-user-friends"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="dash-staff">0</h3>
+                        <p>Staff</p>
+                    </div>
+                </div>
+
+                <div class="stat-card pns">
+                    <div class="stat-icon">
+                        <i class="fas fa-id-badge"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="dash-pns">0</h3>
+                        <p>PNS</p>
+                    </div>
+                </div>
+
+                <div class="stat-card pppk">
+                    <div class="stat-icon">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="dash-pppk">0</h3>
+                        <p>PPPK</p>
+                    </div>
+                </div>
+
+                <div class="stat-card non-pns">
+                    <div class="stat-icon">
+                        <i class="fas fa-user-clock"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="dash-non-pns">0</h3>
+                        <p>Non PNS</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="charts-section">
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3><i class="fas fa-chart-pie"></i> Distribusi Jabatan</h3>
+                    </div>
+                    <div class="chart-content">
+                        <canvas id="jabatan-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3><i class="fas fa-chart-bar"></i> Status Pegawai</h3>
+                    </div>
+                    <div class="chart-content">
+                        <canvas id="status-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3><i class="fas fa-chart-line"></i> Distribusi Golongan</h3>
+                    </div>
+                    <div class="chart-content">
+                        <canvas id="golongan-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activities -->
+            <div class="recent-section">
+                <div class="recent-header">
+                    <h3><i class="fas fa-clock"></i> Aktivitas Terbaru</h3>
+                </div>
+                <div class="recent-list" id="recent-activities">
+                    <!-- Recent activities will be populated here -->
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <h3><i class="fas fa-bolt"></i> Aksi Cepat</h3>
+                <div class="action-buttons">
+                    <button onclick="showTab('add')" class="action-btn add">
+                        <i class="fas fa-user-plus"></i>
+                        <span>Tambah Pegawai</span>
+                    </button>
+                    <button onclick="generatePDF('all')" class="action-btn pdf">
+                        <i class="fas fa-file-pdf"></i>
+                        <span>Export PDF</span>
+                    </button>
+                    <button onclick="showTab('data')" class="action-btn view">
+                        <i class="fas fa-eye"></i>
+                        <span>Lihat Semua</span>
+                    </button>
+                    <button onclick="printReport()" class="action-btn print">
+                        <i class="fas fa-print"></i>
+                        <span>Cetak Laporan</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Pegawai Tab -->
+        <div id="data-tab" class="tab-content">
+            <div class="search-filter">
+                <input type="text" id="search" placeholder="Cari pegawai..." onkeyup="searchEmployee()">
+                <select id="jabatan-filter" onchange="filterByJabatan()">
+                    <option value="">Semua Jabatan</option>
+                    <option value="Kepala Pelaksana BPBD">Kepala Pelaksana BPBD</option>
+                    <option value="Sekretaris">Sekretaris</option>
+                    <option value="Kepala Sub Bagian Perencanaan dan Keuangan">Kepala Sub Bagian Perencanaan dan
+                        Keuangan</option>
+                    <option value="Kepala Sub Bagian Umum dan Kepegawaian">Kepala Sub Bagian Umum dan Kepegawaian
+                    </option>
+                    <option value="Kepala Bidang Pencegahan dan Kesiapsiagaan">Kepala Bidang Pencegahan dan
+                        Kesiapsiagaan</option>
+                    <option value="Kepala Bidang Kedaruratan dan Logistik">Kepala Bidang Kedaruratan dan Logistik
+                    </option>
+                    <option value="Kepala Bidang Rehabilitasi dan Rekonstruksi">Kepala Bidang Rehabilitasi dan
+                        Rekonstruksi</option>
+                    <option value="Kepala Seksi Pencegahan">Kepala Seksi Pencegahan</option>
+                    <option value="Kepala Seksi Kesiapsiagaan">Kepala Seksi Kesiapsiagaan</option>
+                    <option value="Kepala Seksi Kedaruratan">Kepala Seksi Kedaruratan</option>
+                    <option value="Kepala Seksi Logistik">Kepala Seksi Logistik</option>
+                    <option value="Kepala Seksi Rehabilitasi">Kepala Seksi Rehabilitasi</option>
+                    <option value="Kepala Seksi Rekonstruksi">Kepala Seksi Rekonstruksi</option>
+                    <option value="Staf Bagian Umum dan Kepegawaian">Staf Bagian Umum dan Kepegawaian</option>
+                    <option value="Staf Pencegahan">Staf Pencegahan</option>
+                    <option value="Staf Kesiapsiagaan">Staf Kesiapsiagaan</option>
+                    <option value="Staf Kedaruratan">Staf Kedaruratan</option>
+                    <option value="Staf Logistik">Staf Logistik</option>
+                    <option value="Staf Rehabilitasi">Staf Rehabilitasi</option>
+                    <option value="Staf Rekonstruksi">Staf Rekonstruksi</option>
+                    <option value="Staf Perencanaan dan Keuangan">Staf Perencanaan dan Keuangan</option>
+                </select>
+                <select id="status-filter" onchange="filterByStatus()">
+                    <option value="">Semua Status</option>
+                    <option value="PNS">PNS</option>
+                    <option value="PPPK">PPPK</option>
+                    <option value="Non PNS">Non PNS</option>
+                </select>
+                <select id="golongan-filter" onchange="filterByGolongan()">
+                    <option value="">Semua Golongan</option>
+                    <option value="Ia">Ia</option>
+                    <option value="Ib">Ib</option>
+                    <option value="Ic">Ic</option>
+                    <option value="Id">Id</option>
+                    <option value="IIa">IIa</option>
+                    <option value="IIb">IIb</option>
+                    <option value="IIc">IIc</option>
+                    <option value="IId">IId</option>
+                    <option value="IIIa">IIIa</option>
+                    <option value="IIIb">IIIb</option>
+                    <option value="IIIc">IIIc</option>
+                    <option value="IIId">IIId</option>
+                    <option value="IVa">IVa</option>
+                    <option value="IVb">IVb</option>
+                    <option value="IVc">IVc</option>
+                    <option value="IVd">IVd</option>
+                    <option value="IVe">IVe</option>
+                </select>
+            </div>
+
+            <div class="employee-grid" id="employee-grid">
+                <!-- Employee cards will be populated here -->
+            </div>
+        </div>
+
+        <!-- Add Employee Tab -->
+        <div id="add-tab" class="tab-content">
+            <h3 class="form-title" id="form-title">Tambah Pegawai Baru</h3>
+            <form id="employee-form" class="employee-form" onsubmit="return submitEmployeeForm(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="nama">Nama Lengkap *</label>
+                        <input type="text" id="nama" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="nip">NIP</label>
+                        <input type="text" id="nip">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="jabatan">Jabatan *</label>
+                        <select id="jabatan" required>
+                            <option value="">Pilih Jabatan</option>
+                            <option value="Kepala Pelaksana BPBD">Kepala Pelaksana BPBD</option>
+                            <option value="Sekretaris">Sekretaris</option>
+                            <option value="Kepala Sub Bagian Perencanaan dan Keuangan">Kepala Sub Bagian Perencanaan dan
+                                Keuangan</option>
+                            <option value="Kepala Sub Bagian Umum dan Kepegawaian">Kepala Sub Bagian Umum dan
+                                Kepegawaian</option>
+                            <option value="Kepala Bidang Pencegahan dan Kesiapsiagaan">Kepala Bidang Pencegahan dan
+                                Kesiapsiagaan</option>
+                            <option value="Kepala Bidang Kedaruratan dan Logistik">Kepala Bidang Kedaruratan dan
+                                Logistik</option>
+                            <option value="Kepala Bidang Rehabilitasi dan Rekonstruksi">Kepala Bidang Rehabilitasi dan
+                                Rekonstruksi</option>
+                            <option value="Kepala Seksi Pencegahan">Kepala Seksi Pencegahan</option>
+                            <option value="Kepala Seksi Kesiapsiagaan">Kepala Seksi Kesiapsiagaan</option>
+                            <option value="Kepala Seksi Kedaruratan">Kepala Seksi Kedaruratan</option>
+                            <option value="Kepala Seksi Logistik">Kepala Seksi Logistik</option>
+                            <option value="Kepala Seksi Rehabilitasi">Kepala Seksi Rehabilitasi</option>
+                            <option value="Kepala Seksi Rekonstruksi">Kepala Seksi Rekonstruksi</option>
+                            <option value="Staf Bagian Umum dan Kepegawaian">Staf Bagian Umum dan Kepegawaian</option>
+                            <option value="Staf Pencegahan">Staf Pencegahan</option>
+                            <option value="Staf Kesiapsiagaan">Staf Kesiapsiagaan</option>
+                            <option value="Staf Kedaruratan">Staf Kedaruratan</option>
+                            <option value="Staf Logistik">Staf Logistik</option>
+                            <option value="Staf Rehabilitasi">Staf Rehabilitasi</option>
+                            <option value="Staf Rekonstruksi">Staf Rekonstruksi</option>
+                            <option value="Staf Perencanaan dan Keuangan">Staf Perencanaan dan Keuangan</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="status">Status Pegawai *</label>
+                        <select id="status" required>
+                            <option value="">Pilih Status</option>
+                            <option value="PNS">PNS</option>
+                            <option value="PPPK">PPPK</option>
+                            <option value="Non PNS">Non PNS</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="golongan">Golongan</label>
+                        <select id="golongan">
+                            <option value="">Pilih Golongan</option>
+                            <option value="Ia">Ia</option>
+                            <option value="Ib">Ib</option>
+                            <option value="Ic">Ic</option>
+                            <option value="Id">Id</option>
+                            <option value="IIa">IIa</option>
+                            <option value="IIb">IIb</option>
+                            <option value="IIc">IIc</option>
+                            <option value="IId">IId</option>
+                            <option value="IIIa">IIIa</option>
+                            <option value="IIIb">IIIb</option>
+                            <option value="IIIc">IIIc</option>
+                            <option value="IIId">IIId</option>
+                            <option value="IVa">IVa</option>
+                            <option value="IVb">IVb</option>
+                            <option value="IVc">IVc</option>
+                            <option value="IVd">IVd</option>
+                            <option value="IVe">IVe</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="masa-kerja">Masa Kerja (Tahun)</label>
+                        <input type="number" id="masa-kerja" min="0" max="50">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="tempat-lahir">Tempat Lahir</label>
+                        <input type="text" id="tempat-lahir">
+                    </div>
+                    <div class="form-group">
+                        <label for="tanggal-lahir">Tanggal Lahir</label>
+                        <input type="date" id="tanggal-lahir">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="alamat">Alamat</label>
+                        <textarea id="alamat" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="foto">Foto Pegawai</label>
+                        <input type="file" id="foto" accept="image/*" onchange="previewImage(this)">
+                        <div class="image-preview" id="image-preview"></div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit">
+                        <i class="fas fa-save"></i> Simpan
+                    </button>
+                    <button type="reset">
+                        <i class="fas fa-undo"></i> Reset
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Report Tab -->
+        <div id="report-tab" class="tab-content">
+            <div class="report-actions">
+                <button onclick="generatePDF('all')" class="btn-primary">
+                    <i class="fas fa-file-pdf"></i> Download Semua Pegawai (PDF)
+                </button>
+                <button onclick="printReport()" class="btn-secondary">
+                    <i class="fas fa-print"></i> Cetak Laporan
+                </button>
+            </div>
+
+            <div class="report-summary">
+                <div class="summary-card">
+                    <h3>Total Pegawai</h3>
+                    <span id="total-employees">0</span>
+                </div>
+                <div class="summary-card">
+                    <h3>Berdasarkan Jabatan</h3>
+                    <div id="jabatan-summary"></div>
+                </div>
+                <div class="summary-card">
+                    <h3>Berdasarkan Status</h3>
+                    <div id="status-summary"></div>
+                </div>
+                <div class="summary-card">
+                    <h3>Berdasarkan Golongan</h3>
+                    <div id="golongan-summary"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Employee Details -->
+    <div id="employee-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <div id="modal-body"></div>
+            <div class="modal-actions">
+                <button onclick="editEmployee()" class="btn-primary">
+                    <i class="fas fa-edit"></i> Edit
+                </button>
+                <button onclick="generatePDF('single')" class="btn-secondary">
+                    <i class="fas fa-file-pdf"></i> Download PDF
+                </button>
+                <button onclick="deleteEmployee()" class="btn-danger">
+                    <i class="fas fa-trash"></i> Hapus
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="logo-input" accept="image/*" style="display: none;" onchange="updateLogo(this)">
+
+    <script>
+        // Simple login system embedded in HTML
+        let currentUser = null;
+
+        // User database
+        const users = {
+            'admin': { password: 'admin123', name: 'Administrator', role: 'admin' },
+            'user': { password: 'user123', name: 'User', role: 'user' }
+        };
+
+        // Login function
+        function loginUser() {
+            console.log('Login button clicked!');
+
+            try {
+                const usernameEl = document.getElementById('username');
+                const passwordEl = document.getElementById('password');
+
+                if (!usernameEl || !passwordEl) {
+                    console.error('Username or password input not found!');
+                    alert('Error: Input fields not found!');
+                    return;
+                }
+
+                const username = usernameEl.value.trim();
+                const password = passwordEl.value.trim();
+
+                console.log('Trying to login:', username, password);
+                console.log('Available users:', users);
+
+                // Remove existing messages
+                const existingMsg = document.querySelector('.error-message, .success-message');
+                if (existingMsg) existingMsg.remove();
+
+                if (!username || !password) {
+                    showMessage('Harap isi username dan password!', 'error');
+                    return;
+                }
+
+                if (users[username] && users[username].password === password) {
+                    currentUser = users[username];
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+
+                    showMessage('Login berhasil!', 'success');
+
+                    setTimeout(() => {
+                        document.getElementById('login-screen').style.display = 'none';
+                        document.getElementById('main-app').style.display = 'block';
+                        document.getElementById('current-user').textContent = currentUser.name;
+
+                        // Initialize main app functions
+                        if (typeof initializeMainApp === 'function') {
+                            initializeMainApp();
+                        }
+
+                        // Force reload data
+                        if (typeof forceReloadData === 'function') {
+                            forceReloadData();
+                        }
+                    }, 500);
+                } else {
+                    console.log('Login failed for username:', username);
+                    showMessage('Username atau password salah!', 'error');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                alert('Error during login: ' + error.message);
+            }
+        }
+
+        // Quick login functions
+        function quickLoginAdmin() {
+            console.log('Quick login admin clicked');
+            try {
+                document.getElementById('username').value = 'admin';
+                document.getElementById('password').value = 'admin123';
+                loginUser();
+            } catch (error) {
+                console.error('Quick login admin error:', error);
+                alert('Error: ' + error.message);
+            }
+        }
+
+        function quickLoginUser() {
+            console.log('Quick login user clicked');
+            try {
+                document.getElementById('username').value = 'user';
+                document.getElementById('password').value = 'user123';
+                loginUser();
+            } catch (error) {
+                console.error('Quick login user error:', error);
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Show message function
+        function showMessage(message, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type === 'error' ? 'error-message' : 'success-message';
+            messageDiv.textContent = message;
+            messageDiv.style.cssText = `
+                padding: 10px 15px;
+                margin-bottom: 15px;
+                border-radius: 8px;
+                text-align: center;
+                font-size: 14px;
+                ${type === 'error' ?
+                    'background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;' :
+                    'background: #d4edda; color: #155724; border: 1px solid #c3e6cb;'
+                }
+            `;
+
+            const loginForm = document.querySelector('.login-form');
+            loginForm.insertBefore(messageDiv, loginForm.firstChild);
+
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.remove();
+                }
+            }, 3000);
+        }
+
+        // Logout function
+        function logout() {
+            if (confirm('Yakin ingin logout?')) {
+                currentUser = null;
+                localStorage.removeItem('currentUser');
+                document.getElementById('username').value = '';
+                document.getElementById('password').value = '';
+                document.getElementById('login-screen').style.display = 'flex';
+                document.getElementById('main-app').style.display = 'none';
+            }
+        }
+
+        // Check login on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log('Page loaded, checking login...');
+
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                try {
+                    currentUser = JSON.parse(savedUser);
+                    document.getElementById('login-screen').style.display = 'none';
+                    document.getElementById('main-app').style.display = 'block';
+                    document.getElementById('current-user').textContent = currentUser.name;
+
+                    // Initialize main app functions
+                    setTimeout(() => {
+                        if (typeof initializeMainApp === 'function') {
+                            initializeMainApp();
+                        }
+                        // Also refresh all data
+                        if (typeof refreshAllData === 'function') {
+                            refreshAllData();
+                        }
+                    }, 100);
+                } catch (e) {
+                    localStorage.removeItem('currentUser');
+                }
+            }
+
+            // Add Enter key support
+            document.getElementById('username').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') loginUser();
+            });
+
+            document.getElementById('password').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') loginUser();
+            });
+        });
+
+        // Essential functions for main features
+        function editLogo() {
+            console.log('Edit logo clicked');
+            const logoInput = document.getElementById('logo-input');
+            if (logoInput) {
+                logoInput.click();
+            } else {
+                // Create logo input if it doesn't exist
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.id = 'logo-input';
+                input.accept = 'image/*';
+                input.style.display = 'none';
+                input.onchange = function (e) {
+                    if (e.target.files && e.target.files[0]) {
+                        const reader = new FileReader();
+                        reader.onload = function (event) {
+                            document.getElementById('logo').src = event.target.result;
+                            localStorage.setItem('customLogo', event.target.result);
+                        };
+                        reader.readAsDataURL(e.target.files[0]);
+                    }
+                };
+                document.body.appendChild(input);
+                input.click();
+            }
+        }
+
+        function showTab(tabName) {
+            console.log('Switching to tab:', tabName);
+
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Remove active class from all buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            const targetTab = document.getElementById(tabName + '-tab');
+            if (targetTab) {
+                targetTab.classList.add('active');
+            }
+
+            // Add active class to clicked button
+            const targetBtn = document.querySelector(`[onclick="showTab('${tabName}')"]`);
+            if (targetBtn) {
+                targetBtn.classList.add('active');
+            }
+
+            // Initialize tab content with data refresh
+            setTimeout(() => {
+                // Always reload data first
+                if (typeof forceReloadData === 'function') {
+                    forceReloadData();
+                }
+
+                if (tabName === 'data' && typeof displayEmployees === 'function') {
+                    displayEmployees();
+                } else if (tabName === 'dashboard' && typeof updateDashboard === 'function') {
+                    updateDashboard();
+                } else if (tabName === 'report' && typeof updateSummary === 'function') {
+                    updateSummary();
+                } else if (tabName === 'add' && typeof initializeSelects === 'function') {
+                    initializeSelects();
+                }
+            }, 50);
+        }
+
+        function searchEmployee() {
+            if (typeof window.searchEmployeeFunc === 'function') {
+                window.searchEmployeeFunc();
+            }
+        }
+
+        function filterByJabatan() {
+            if (typeof window.filterByJabatanFunc === 'function') {
+                window.filterByJabatanFunc();
+            }
+        }
+
+        function filterByStatus() {
+            if (typeof window.filterByStatusFunc === 'function') {
+                window.filterByStatusFunc();
+            }
+        }
+
+        function filterByGolongan() {
+            if (typeof window.filterByGolonganFunc === 'function') {
+                window.filterByGolonganFunc();
+            }
+        }
+
+        function previewImage(input) {
+            const preview = document.getElementById('image-preview');
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // generatePDF function moved to generatePDFLocal above
+
+        function printReport() {
+            window.print();
+        }
+
+        // Form submission function
+        function submitEmployeeForm(event) {
+            event.preventDefault();
+            console.log('Form submission started...');
+
+            // Get form data
+            const nama = document.getElementById('nama').value.trim();
+            const nip = document.getElementById('nip').value.trim();
+            const jabatan = document.getElementById('jabatan').value;
+            const status = document.getElementById('status').value;
+            const golongan = document.getElementById('golongan').value;
+            const masaKerja = document.getElementById('masa-kerja').value;
+            const tempatLahir = document.getElementById('tempat-lahir').value.trim();
+            const tanggalLahir = document.getElementById('tanggal-lahir').value;
+            const alamat = document.getElementById('alamat').value.trim();
+            const foto = document.getElementById('image-preview').querySelector('img')?.src || '';
+
+            // Validate required fields
+            if (!nama || !jabatan || !status) {
+                alert('Harap isi semua field yang wajib (Nama, Jabatan, Status)!');
+                return false;
+            }
+
+            // Get existing employees from localStorage
+            let employees = JSON.parse(localStorage.getItem('employees')) || [];
+
+            let employee;
+            let isEdit = false;
+
+            // Check if this is an edit operation
+            if (currentEmployeeId) {
+                // Update existing employee
+                const index = employees.findIndex(emp => emp.id == currentEmployeeId);
+                if (index !== -1) {
+                    employee = {
+                        id: currentEmployeeId,
+                        nama: nama,
+                        nip: nip,
+                        jabatan: jabatan,
+                        status: status,
+                        golongan: golongan,
+                        masaKerja: masaKerja,
+                        tempatLahir: tempatLahir,
+                        tanggalLahir: tanggalLahir,
+                        alamat: alamat,
+                        foto: foto
+                    };
+                    employees[index] = employee;
+                    isEdit = true;
+                    currentEmployeeId = null; // Reset after edit
+                }
+            } else {
+                // Create new employee
+                employee = {
+                    id: Date.now(),
+                    nama: nama,
+                    nip: nip,
+                    jabatan: jabatan,
+                    status: status,
+                    golongan: golongan,
+                    masaKerja: masaKerja,
+                    tempatLahir: tempatLahir,
+                    tanggalLahir: tanggalLahir,
+                    alamat: alamat,
+                    foto: foto
+                };
+                employees.push(employee);
+            }
+
+            console.log('Employee data:', employee, 'Is Edit:', isEdit);
+
+            // Save to localStorage
+            localStorage.setItem('employees', JSON.stringify(employees));
+
+            console.log('Employee saved. Total employees:', employees.length);
+
+            // Update global employees variable in script.js
+            if (typeof window.updateGlobalEmployees === 'function') {
+                window.updateGlobalEmployees(employees);
+            }
+
+            // Reset form
+            document.getElementById('employee-form').reset();
+            document.getElementById('image-preview').innerHTML = '';
+
+            // Reset form title
+            const formTitle = document.getElementById('form-title');
+            if (formTitle) {
+                formTitle.textContent = 'Tambah Pegawai Baru';
+            }
+
+            // Show success message
+            alert(isEdit ? 'Data pegawai berhasil diperbarui!' : 'Data pegawai berhasil disimpan!');
+
+            // Immediately update all displays before switching tabs
+            updateAllDisplaysNow(employees);
+
+            // Switch to data tab
+            setTimeout(() => {
+                showTab('data');
+            }, 200);
+
+            return false;
+        }
+
+        // Function to immediately update all displays
+        function updateAllDisplaysNow(employeeData) {
+            console.log('Updating all displays with data:', employeeData.length);
+
+            // Update Data Pegawai tab
+            const grid = document.getElementById('employee-grid');
+            if (grid) {
+                if (employeeData.length > 0) {
+                    grid.innerHTML = employeeData.map(emp => `
+                        <div class="employee-card">
+                            <img src="${emp.foto || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iNDAiIGZpbGw9IiNkZGQiLz4KPHN2ZyB4PSIyNSIgeT0iMjAiIHdpZHRoPSIzMCIgaGVpZ2h0PSIzMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+CjxwYXRoIGQ9Ik0xMiAxMmMyLjIxIDAgNC0xLjc5IDQtNHMtMS43OS00LTQtNC00IDEuNzktNCA0IDEuNzkgNCA0IDR6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiLz4KPC9zdmc+Cjwvc3ZnPg=='}" 
+                                 alt="${emp.nama}" class="employee-photo">
+                            <h3>${emp.nama}</h3>
+                            <div class="jabatan">${emp.jabatan}</div>
+                            <div class="nip">${emp.nip || 'NIP: -'}</div>
+                            <span class="status-badge ${emp.status ? emp.status.toLowerCase().replace(' ', '-') : 'non-pns'}">${emp.status || 'Non PNS'}</span>
+                            <div class="card-actions">
+                                <button onclick="event.stopPropagation(); showEmployeeDetail(${emp.id})" class="action-btn detail-btn" title="Detail">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button onclick="event.stopPropagation(); editEmployeeFromCard(${emp.id})" class="action-btn edit-btn" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button onclick="event.stopPropagation(); deleteEmployeeFromCard(${emp.id})" class="action-btn delete-btn" title="Hapus">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    grid.innerHTML = '<p style="text-align: center; color: #666; grid-column: 1/-1;">Belum ada data pegawai</p>';
+                }
+            }
+
+            // Update Dashboard statistics
+            const totalElement = document.getElementById('dash-total-employees');
+            if (totalElement) {
+                totalElement.textContent = employeeData.length;
+            }
+
+            // Count by status
+            const pnsCount = employeeData.filter(emp => emp.status === 'PNS').length;
+            const pppkCount = employeeData.filter(emp => emp.status === 'PPPK').length;
+            const nonPnsCount = employeeData.filter(emp => !emp.status || emp.status === 'Non PNS').length;
+
+            const pnsElement = document.getElementById('dash-pns');
+            const pppkElement = document.getElementById('dash-pppk');
+            const nonPnsElement = document.getElementById('dash-non-pns');
+
+            if (pnsElement) pnsElement.textContent = pnsCount;
+            if (pppkElement) pppkElement.textContent = pppkCount;
+            if (nonPnsElement) nonPnsElement.textContent = nonPnsCount;
+
+            // Count pimpinan vs staff
+            const pimpinanJabatan = ['Kepala Pelaksana BPBD', 'Sekretaris', 'Kepala Sub Bagian Perencanaan dan Keuangan', 'Kepala Sub Bagian Umum dan Kepegawaian', 'Kepala Bidang Pencegahan dan Kesiapsiagaan', 'Kepala Bidang Kedaruratan dan Logistik', 'Kepala Bidang Rehabilitasi dan Rekonstruksi'];
+            const pimpinanCount = employeeData.filter(emp => pimpinanJabatan.includes(emp.jabatan)).length;
+            const staffCount = employeeData.length - pimpinanCount;
+
+            const pimpinanElement = document.getElementById('dash-pimpinan');
+            const staffElement = document.getElementById('dash-staff');
+
+            if (pimpinanElement) pimpinanElement.textContent = pimpinanCount;
+            if (staffElement) staffElement.textContent = staffCount;
+
+            // Update Reports/Summary
+            const totalReportElement = document.getElementById('total-employees');
+            if (totalReportElement) {
+                totalReportElement.textContent = employeeData.length;
+            }
+
+            // Jabatan summary
+            const jabatanCount = {};
+            employeeData.forEach(emp => {
+                jabatanCount[emp.jabatan] = (jabatanCount[emp.jabatan] || 0) + 1;
+            });
+
+            const jabatanSummary = document.getElementById('jabatan-summary');
+            if (jabatanSummary) {
+                jabatanSummary.innerHTML = Object.entries(jabatanCount)
+                    .map(([jabatan, count]) => `<div>${jabatan}: ${count}</div>`)
+                    .join('');
+            }
+
+            // Status summary
+            const statusCount = {};
+            employeeData.forEach(emp => {
+                const status = emp.status || 'Non PNS';
+                statusCount[status] = (statusCount[status] || 0) + 1;
+            });
+
+            const statusSummary = document.getElementById('status-summary');
+            if (statusSummary) {
+                statusSummary.innerHTML = Object.entries(statusCount)
+                    .map(([status, count]) => `<div>${status}: ${count}</div>`)
+                    .join('');
+            }
+
+            // Golongan summary
+            const golonganCount = {};
+            employeeData.forEach(emp => {
+                if (emp.golongan) {
+                    golonganCount[emp.golongan] = (golonganCount[emp.golongan] || 0) + 1;
+                }
+            });
+
+            const golonganSummary = document.getElementById('golongan-summary');
+            if (golonganSummary) {
+                golonganSummary.innerHTML = Object.entries(golonganCount)
+                    .map(([golongan, count]) => `<div>Golongan ${golongan}: ${count}</div>`)
+                    .join('');
+            }
+
+            console.log('All displays updated successfully');
+        }
+
+        // Test functions for debugging
+        function testLocalStorage() {
+            const employees = JSON.parse(localStorage.getItem('employees')) || [];
+            console.log('Current employees in localStorage:', employees);
+            console.log('Total count:', employees.length);
+            return employees;
+        }
+
+        function addSampleEmployee() {
+            const sampleEmployee = {
+                id: Date.now(),
+                nama: 'Test Pegawai',
+                nip: '123456789',
+                jabatan: 'Staf Pencegahan',
+                status: 'PNS',
+                golongan: 'IIIa',
+                masaKerja: '5',
+                tempatLahir: 'Jakarta',
+                tanggalLahir: '1990-01-01',
+                alamat: 'Jl. Test No. 123',
+                foto: ''
+            };
+
+            let employees = JSON.parse(localStorage.getItem('employees')) || [];
+            employees.push(sampleEmployee);
+            localStorage.setItem('employees', JSON.stringify(employees));
+
+            console.log('Sample employee added. Total:', employees.length);
+            updateAllDisplaysNow(employees);
+            return sampleEmployee;
+        }
+
+        function testLogin() {
+            console.log('Testing login...');
+            document.getElementById('username').value = 'admin';
+            document.getElementById('password').value = 'admin123';
+            doLoginNow();
+        }
+
+        // Make functions available globally
+        window.testLocalStorage = testLocalStorage;
+        window.addSampleEmployee = addSampleEmployee;
+        window.testLogin = testLogin;
+
+        function updateLogo(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    document.getElementById('logo').src = e.target.result;
+                    localStorage.setItem('customLogo', e.target.result);
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+    </script>
+
+    <input type="file" id="logo-input" accept="image/*" style="display: none;" onchange="updateLogo(this)">
+    <script src="script.js"></script>
+</body>
+
+</html>
